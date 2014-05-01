@@ -26,7 +26,7 @@ class pyGoogleTrendsCsvDownloader(object):
 
     from pyGoogleTrendsCsvDownloader import pyGoogleTrendsCsvDownloader
     r = pyGoogleTrendsCsvDownloader(username, password)
-    r.get_csv(cat='0-958', geo='US-ME-500')
+    r.get_csv_data(cat='0-958', geo='US-ME-500')
 
     '''
     def __init__(self, username, password):
@@ -106,7 +106,6 @@ class pyGoogleTrendsCsvDownloader(object):
         else:
             print 'Authentication successfull for user %s' % username
 
-        return
     def is_authentication_successfull(self, response):
         '''
             Arbitrary way of us knowing whether the authentication succeeded or not:
@@ -143,17 +142,23 @@ class pyGoogleTrendsCsvDownloader(object):
             content = response.read()
         return content
 
-    def get_csv_data(self, q, geo):
+    def get_csv_data(self, **kwargs):
         '''
         Download CSV reports
         '''
-
         time.sleep(self.download_delay)
 
-        params = 'hl=en-US&q=%s&geo=%s&content=1&export=1' % (urllib.quote_plus(q), urllib.quote_plus(geo))
+        params = {
+            'hl': 'en-us',
+            'export': 1
+        }
+        params.update(kwargs)
+
+        # Silly python with the urlencode method
+        params = urllib.urlencode(params).replace("+", "%20")
         response = self.opener.open(self.url_download + params)
 
-        # Make sure everything is working ;)
+        # Make sure quotas are not exceeded ;)
         if self.is_quota_exceeded(response):
            raise QuotaExceededException()
 

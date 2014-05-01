@@ -10,21 +10,21 @@
 list_of_geo_terms = [
     "AU-ACT",
     "AU-NSW",
-    # "AU-NT",
-    # "AU-QLD",
-    # "AU-SA",
-    # "AU-TAS",
-    # "AU-VIC",
-    # "AU-WA",
-    # "AU",
+    "AU-NT",
+    "AU-QLD",
+    "AU-SA",
+    "AU-TAS",
+    "AU-VIC",
+    "AU-WA",
+    "AU",
 ]
 
 '''
     Periods of time consist of a start date and a number of month
 '''
 list_of_periods_of_time = [
-    '1 2006+96m', #Jan 2006 to Dec 2009
-    '1 2009+48m', #Jan 2009 to Dec 2011
+    '1/2006 96m', #From Jan 2006 lasting 96 months
+    '1/2009 48m', #From Jan 2009 lasting 48 months
 ]
 
 

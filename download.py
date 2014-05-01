@@ -5,6 +5,7 @@
 import getpass
 import os
 import sys
+import urllib
 
 from pyGoogleTrendsCsvDownloader import pyGoogleTrendsCsvDownloader, QuotaExceededException
 from searchTerms import list_of_geo_terms, list_of_periods_of_time, list_of_search_terms
@@ -13,18 +14,6 @@ from searchTerms import list_of_geo_terms, list_of_periods_of_time, list_of_sear
 # in case we need more that 1 user to download all the data,
 # we keep here all the connexions
 google_connexions = []
-
-list_of_search_terms =     ["Chicken pox",
-    "hep a",
-    "hep b",
-    "hep c",
-    "Ross River",
-    "a cough",
-    "alphamox",
-    "amoxil",
-    "armah forest",
-    "barmah forest virus",]
-
 
 def mkdirp(directory):
     if not os.path.isdir(directory):
@@ -42,10 +31,8 @@ def main():
     print 'You will need: %d Google users (1 user = 500 queries)' % number_of_required_users
 
     for i in range(number_of_required_users):
-        #login = raw_input("Please enter your email address: ")
-        #pwd = getpass.getpass("Enter your password: ")
-        login = 'simon.m.r.avril@gmail.com'
-        pwd = 'bbcs2000'
+        login = raw_input("Please enter your email address: ")
+        pwd = getpass.getpass("Enter your password: ")
         connexion = pyGoogleTrendsCsvDownloader(login, pwd)
         google_connexions.append(connexion)
 
@@ -67,7 +54,7 @@ def main():
                 while not data:
                     try:
                         connexion = google_connexions[0]
-                        data = connexion.get_csv_data(q='discharge', geo='AU-ACT')
+                        data = connexion.get_csv_data(q=disease, geo=geo, date=timeframe)
                     except QuotaExceededException:
                         google_connexions.pop(0)
                     except IndexError:
