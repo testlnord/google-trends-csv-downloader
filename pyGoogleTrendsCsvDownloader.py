@@ -15,6 +15,9 @@ from cookielib import Cookie, CookieJar
 from StringIO import StringIO
 
 
+class QuotaExceededException(Exception):
+    pass
+
 class pyGoogleTrendsCsvDownloader(object):
     '''
     Google Trends Downloader.
@@ -39,18 +42,20 @@ class pyGoogleTrendsCsvDownloader(object):
 
         self.service = "trendspro"
         self.url_service = "http://www.google.com/trends/"
-        self.url_download = self.url_service + "trendsReport?"
+        self.url_download = 'https://www.google.com/trends/trendsReport?'
 
         self.login_params = {}
         # These headers are necessary, otherwise Google will flag the request at your account level
-        self.headers = [('User-Agent', 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0'),
-                        ("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
-                        ("Accept-Language", "en-gb,en;q=0.5"),
-                        ("Accept-Encoding", "gzip, deflate"),
-                        ("Connection", "keep-alive")]
+        self.headers = [('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36'),
+                        ("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
+                        ("Accept-Language", "en-gb,en;q=0.8"),
+                        ("Accept-Encoding", "gzip,deflate,sdch"),
+                        ("referer", "https://www.google.com/trends/explore"),
+                        ("pragma", "no-cache"),
+                        ("cache-control", "no-cache"),
+                        ]
         self.url_login = 'https://accounts.google.com/ServiceLogin?service='+self.service+'&passive=1209600&continue='+self.url_service+'&followup='+self.url_service
         self.url_authenticate = 'https://accounts.google.com/accounts/ServiceLoginAuth'
-        self.header_dictionary = {}
 
         self._authenticate(username, password)
 
@@ -60,30 +65,25 @@ class pyGoogleTrendsCsvDownloader(object):
         1 - make a GET request to the Login webpage so we can get the login form
         2 - make a POST request with email, password and login form input values
         '''
-
         # Make sure we get CSV results in English
-        ck = Cookie(version=0, name='I4SUserLocale', value='en_US', port=None, port_specified=False, domain='www.google.com', domain_specified=False,domain_initial_dot=False, path='/trends', path_specified=True, secure=False, expires=None, discard=False, comment=None, comment_url=None, rest=None)
+        ck1 = Cookie(version=0, name='I4SUserLocale', value='en_US', port=None, port_specified=False, domain='.google.com', domain_specified=False,domain_initial_dot=False, path='', path_specified=False, secure=False, expires=None, discard=False, comment=None, comment_url=None, rest=None)
+        # This cookie is now mandatory
+        ck2 = Cookie(version=0, name='PREF', value='', port=None, port_specified=False, domain='.google.com', domain_specified=False,domain_initial_dot=False, path='', path_specified=False, secure=False, expires=None, discard=False, comment=None, comment_url=None, rest=None)
 
         self.cj = CookieJar()
-        self.cj.set_cookie(ck)
+        self.cj.set_cookie(ck1)
+        self.cj.set_cookie(ck2)
+
         self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
         self.opener.addheaders = self.headers
 
         # Get all of the login form input values
         find_inputs = etree.XPath("//form[@id='gaia_loginform']//input")
+        resp = self.opener.open(self.url_login)
+        data = self.read_gzipped_response(resp)
+
         try:
-            #
-            resp = self.opener.open(self.url_login)
-
-            if resp.info().get('Content-Encoding') == 'gzip':
-                buf = StringIO( resp.read())
-                f = gzip.GzipFile(fileobj=buf)
-                data = f.read()
-            else:
-                data = resp.read()
-
             xmlTree = etree.fromstring(data, parser=html.HTMLParser(recover=True, remove_comments=True))
-
             for input in find_inputs(xmlTree):
                 name = input.get('name')
                 if name:
@@ -97,54 +97,65 @@ class pyGoogleTrendsCsvDownloader(object):
         self.login_params["Passwd"] = password
 
         params = urllib.urlencode(self.login_params)
-        self.auth_resp = self.opener.open(self.url_authenticate, params)
+        auth_resp = self.opener.open(self.url_authenticate, params)
 
         # Testing whether Authentication was a success
         # I noticed that a correct auth sets a few cookies
-        if not self.is_authentication_successfull():
+        if not self.is_authentication_successfull(auth_resp):
             print 'Warning: Authentication failed for user %s' % username
+        else:
+            print 'Authentication successfull for user %s' % username
 
-
-    def is_authentication_successfull(self):
+        return
+    def is_authentication_successfull(self, response):
         '''
             Arbitrary way of us knowing whether the authentication succeeded or not:
             we look for a SSID cookie-set header value.
+            I noticed that the 4 mandatory cookies were:
+              - SID
+              - SSID
+              - HSID
+              - PREF (but does not need to be set)
         '''
-        if self.auth_resp:
-            return 'SSID' in self.auth_resp.info().getheader('Set-Cookie')
+        if response:
+            return 'SSID' in response.info().getheader('Set-Cookie')
 
         return False
 
-    def get_csv_data(self, throttle=False, **kwargs):
+    def is_quota_exceeded(self, response):
+        # TODO: double check that the check for the content-disposition
+        # is correct
+        if response.info().has_key('Content-Disposition'):
+            return False
+        return True
+
+    def read_gzipped_response(self, response):
+        '''
+            Since we are adding gzip to our http request Google can answer with gzipped data
+            that needs uncompressing before handling.
+            This method returns the text content of a Http response.
+        '''
+        if response.info().get('Content-Encoding') == 'gzip':
+            buf = StringIO(response.read())
+            f = gzip.GzipFile(fileobj=buf)
+            content = f.read()
+        else:
+            content = response.read()
+        return content
+
+    def get_csv_data(self, q, geo):
         '''
         Download CSV reports
         '''
 
-        # Randomized download delay
-        if throttle:
-            r = random.uniform(0.5 * self.download_delay, 1.5 * self.download_delay)
-            time.sleep(r)
+        time.sleep(self.download_delay)
 
-        params = {
-            'export': 1
-        }
-        params.update(kwargs)
-        params = urllib.urlencode(params)
-
-        r = self.opener.open(self.url_download + params)
+        params = 'hl=en-US&q=%s&geo=%s&content=1&export=1' % (urllib.quote_plus(q), urllib.quote_plus(geo))
+        response = self.opener.open(self.url_download + params)
 
         # Make sure everything is working ;)
-        if not r.info().has_key('Content-Disposition'):
-            print "You've exceeded your quota. Continue tomorrow..."
-            sys.exit(0)
+        if self.is_quota_exceeded(response):
+           raise QuotaExceededException()
 
-        if r.info().get('Content-Encoding') == 'gzip':
-            buf = StringIO( r.read())
-            f = gzip.GzipFile(fileobj=buf)
-            data = f.read()
-        else:
-            data = r.read()
-
-        return data
-
+        return self.read_gzipped_response(response)
 
