@@ -6,6 +6,14 @@ As part of a research project we needed to download about 4000 csv files represe
 
 The script will assess how many queries will be run and ask for a number of login/password since Google restricts the search quotas to 500 queries/person/day
 
+## How to use
+
+Edit 'searchTerms.py' and list the queries you are interested in.
+
+run `python download.py'
+
+Enter your Google credentials when asked for it.
+
 
 ## More About the Research Project
 
