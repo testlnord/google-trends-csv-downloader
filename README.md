@@ -8,9 +8,9 @@ The script will assess how many queries will be run and ask for a number of logi
 
 ## How to use
 
-Edit 'searchTerms.py' and list the queries you are interested in.
+Edit `searchTerms.py` and list the queries you are interested in.
 
-run `python download.py'
+run `python download.py`
 
 Enter your Google credentials when asked for it.
 
