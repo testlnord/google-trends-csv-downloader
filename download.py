@@ -48,6 +48,8 @@ def main():
 
         for timeframe in list_of_periods_of_time:
             time_dir = str(timeframe[2:6])
+            if not time_dir:
+                time_dir = '2004-present'
             mkdirp(os.path.join(DATA_DIR, disease, time_dir))
 
             for geo in list_of_geo_terms:
