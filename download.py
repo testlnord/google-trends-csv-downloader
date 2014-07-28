@@ -56,7 +56,7 @@ def main():
                     try:
                         data = connexion.get_csv_data(q=disease, geo=geo, date=timeframe)
                     except QuotaExceededException:
-                        print 'User %s has exceeded quotas. Please login with a new user...'
+                        print 'User has exceeded quotas. Please login with a new user...'
                         connexion = login()
 
                 current_file = open(os.path.join(DATA_DIR, disease, time_dir, '%s.csv' % geo), "wb")

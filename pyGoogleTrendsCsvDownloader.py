@@ -10,6 +10,7 @@ import gzip
 import random
 import time
 import sys
+import random
 
 from cookielib import Cookie, CookieJar
 from StringIO import StringIO
@@ -46,7 +47,7 @@ class pyGoogleTrendsCsvDownloader(object):
 
         self.login_params = {}
         # These headers are necessary, otherwise Google will flag the request at your account level
-        self.headers = [('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36'),
+        self.headers = [('User-Agent', 'Mozilssla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36'),
                         ("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
                         ("Accept-Language", "en-gb,en;q=0.8"),
                         ("Accept-Encoding", "gzip,deflate,sdch"),
@@ -68,7 +69,10 @@ class pyGoogleTrendsCsvDownloader(object):
         # Make sure we get CSV results in English
         ck1 = Cookie(version=0, name='I4SUserLocale', value='en_US', port=None, port_specified=False, domain='.google.com', domain_specified=False,domain_initial_dot=False, path='', path_specified=False, secure=False, expires=None, discard=False, comment=None, comment_url=None, rest=None)
         # This cookie is now mandatory
-        ck2 = Cookie(version=0, name='PREF', value='', port=None, port_specified=False, domain='.google.com', domain_specified=False,domain_initial_dot=False, path='', path_specified=False, secure=False, expires=None, discard=False, comment=None, comment_url=None, rest=None)
+        # Not sure what the value represents but too many queries from the same value
+        # lead to a Quota Exceeded error.
+        random_six_char = ''.join(random.choice('0123456789abcdef') for n in xrange(6))
+        ck2 = Cookie(version=0, name='PREF', value=random_six_char, port=None, port_specified=False, domain='.google.com', domain_specified=False,domain_initial_dot=False, path='', path_specified=False, secure=False, expires=None, discard=False, comment=None, comment_url=None, rest=None)
 
         self.cj = CookieJar()
         self.cj.set_cookie(ck1)
