@@ -23,7 +23,7 @@ list_of_geo_terms = [
     Periods of time consist of a start date and a number of month
 '''
 list_of_periods_of_time = [
-    '1/2006 96m', #From Jan 2006 lasting 96 months
+    '1/2004 120m', #From Jan 2004 lasting 120 months
     '1/2009 48m', #From Jan 2009 lasting 48 months
 ]
 
@@ -38,7 +38,7 @@ list_of_search_terms = [
     "a cough",
     "alphamox",
     "amoxil",
-    "armah forest",
+    "barmah forest",
     "barmah forest virus",
     "biaxsig",
     "blood in mucus",
@@ -204,8 +204,6 @@ list_of_search_terms = [
     "shingles",
     "sinus",
     "sinusitis",
-    "slap face",
-    "slapped cheek",
     "staph infection",
     "strepsils",
     "sudafed",
