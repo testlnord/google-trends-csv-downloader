@@ -44,7 +44,7 @@ def main():
 
     for disease in list_of_search_terms:
         mkdirp(os.path.join(DATA_DIR, disease))
-        print 'Fetchining [%s]...' % disease
+        print 'Fetching [%s]...' % disease
 
         for timeframe in list_of_periods_of_time:
             time_dir = str(timeframe[2:6])
