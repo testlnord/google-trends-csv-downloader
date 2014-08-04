@@ -1,6 +1,6 @@
-import httplib
-import urllib
-import urllib2
+import http.client
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
 import re
 import csv
 import lxml.etree as etree
@@ -12,8 +12,8 @@ import time
 import sys
 import random
 
-from cookielib import Cookie, CookieJar
-from StringIO import StringIO
+from http.cookiejar import Cookie, CookieJar
+from io import StringIO
 
 
 class QuotaExceededException(Exception):
@@ -78,13 +78,13 @@ class pyGoogleTrendsCsvDownloader(object):
         self.cj.set_cookie(ck1)
         self.cj.set_cookie(ck2)
 
-        self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
+        self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cj))
         self.opener.addheaders = self.headers
 
         # Get all of the login form input values
         find_inputs = etree.XPath("//form[@id='gaia_loginform']//input")
         resp = self.opener.open(self.url_login)
-        data = self.read_gzipped_response(resp)
+        data = self.read_gzipped_response(resp).decode()
 
         try:
             xmlTree = etree.fromstring(data, parser=html.HTMLParser(recover=True, remove_comments=True))
@@ -95,20 +95,20 @@ class pyGoogleTrendsCsvDownloader(object):
                     value = input.get('value', '').encode('utf8')
                     self.login_params[name] = value
         except:
-            print("Exception while parsing: %s\n" % traceback.format_exc())
+            print(("Exception while parsing: %s\n" % traceback.format_exc()))
 
         self.login_params["Email"] = username
         self.login_params["Passwd"] = password
 
-        params = urllib.urlencode(self.login_params)
-        auth_resp = self.opener.open(self.url_authenticate, params)
+        params = urllib.parse.urlencode(self.login_params)
+        auth_resp = self.opener.open(self.url_authenticate, params.encode())
 
         # Testing whether Authentication was a success
         # I noticed that a correct auth sets a few cookies
         if not self.is_authentication_successfull(auth_resp):
-            print 'Warning: Authentication failed for user %s' % username
+            print('Warning: Authentication failed for user %s' % username)
         else:
-            print 'Authentication successfull for user %s' % username
+            print('Authentication successfull for user %s' % username)
 
     def is_authentication_successfull(self, response):
         '''
@@ -121,14 +121,15 @@ class pyGoogleTrendsCsvDownloader(object):
               - PREF (but does not need to be set)
         '''
         if response:
-            return 'SSID' in response.info().getheader('Set-Cookie')
+            headers_dict = dict(response.info())
+            return 'Set-Cookie' in headers_dict.keys() and 'SSID' in headers_dict['Set-Cookie']
 
         return False
 
     def is_quota_exceeded(self, response):
         # TODO: double check that the check for the content-disposition
         # is correct
-        if response.info().has_key('Content-Disposition'):
+        if 'Content-Disposition' in response.info():
             return False
         return True
 
@@ -139,9 +140,8 @@ class pyGoogleTrendsCsvDownloader(object):
             This method returns the text content of a Http response.
         '''
         if response.info().get('Content-Encoding') == 'gzip':
-            buf = StringIO(response.read())
-            f = gzip.GzipFile(fileobj=buf)
-            content = f.read()
+            f = gzip.decompress(response.read())
+            content = f
         else:
             content = response.read()
         return content
@@ -159,7 +159,7 @@ class pyGoogleTrendsCsvDownloader(object):
         params.update(kwargs)
 
         # Silly python with the urlencode method
-        params = urllib.urlencode(params).replace("+", "%20")
+        params = urllib.parse.urlencode(params).replace("+", "%20")
         response = self.opener.open(self.url_download + params)
 
         # Make sure quotas are not exceeded ;)
