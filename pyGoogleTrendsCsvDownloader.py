@@ -30,7 +30,7 @@ class pyGoogleTrendsCsvDownloader(object):
     r.get_csv_data(cat='0-958', geo='US-ME-500')
 
     '''
-    def __init__(self, username, password):
+    def __init__(self, username, password, proxy=None):
         '''
         Provide login and password to be used to connect to Google Trends
         All immutable system variables are also defined here
@@ -58,6 +58,7 @@ class pyGoogleTrendsCsvDownloader(object):
         self.url_login = 'https://accounts.google.com/ServiceLogin?service='+self.service+'&passive=1209600&continue='+self.url_service+'&followup='+self.url_service
         self.url_authenticate = 'https://accounts.google.com/accounts/ServiceLoginAuth'
 
+        self.proxy = proxy
         self._authenticate(username, password)
 
     def _authenticate(self, username, password):
@@ -77,8 +78,12 @@ class pyGoogleTrendsCsvDownloader(object):
         self.cj = CookieJar()
         self.cj.set_cookie(ck1)
         self.cj.set_cookie(ck2)
-
-        self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cj))
+        if self.proxy is None:
+            self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cj))
+        else:
+            proxy = urllib.request.ProxyHandler({'http': 'http://{0[2]}:{0[3]}@{0[0]}:{0[1]}'.format(self.proxy),
+                                                 'https': 'http://{0[2]}:{0[3]}@{0[0]}:{0[1]}'.format(self.proxy)})
+            self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cj), proxy)
         self.opener.addheaders = self.headers
 
         # Get all of the login form input values
@@ -97,8 +102,8 @@ class pyGoogleTrendsCsvDownloader(object):
         except:
             print(("Exception while parsing: %s\n" % traceback.format_exc()))
 
-        self.login_params["Email"] = username
-        self.login_params["Passwd"] = password
+        self.login_params["Email".encode('utf8')] = username.encode('utf8')
+        self.login_params["Passwd".encode('utf8')] = password.encode('utf8')
 
         params = urllib.parse.urlencode(self.login_params)
         auth_resp = self.opener.open(self.url_authenticate, params.encode())
@@ -106,9 +111,10 @@ class pyGoogleTrendsCsvDownloader(object):
         # Testing whether Authentication was a success
         # I noticed that a correct auth sets a few cookies
         if not self.is_authentication_successfull(auth_resp):
-            print('Warning: Authentication failed for user %s' % username)
-        else:
-            print('Authentication successfull for user %s' % username)
+            print(auth_resp)
+            print(gzip.decompress(auth_resp.read()))
+            raise ValueError('Warning: Authentication failed for user %s' % username)
+
 
     def is_authentication_successfull(self, response):
         '''
@@ -121,15 +127,16 @@ class pyGoogleTrendsCsvDownloader(object):
               - PREF (but does not need to be set)
         '''
         if response:
-            headers_dict = dict(response.info())
-            return 'Set-Cookie' in headers_dict.keys() and 'SSID' in headers_dict['Set-Cookie']
+            for h in  response.headers._headers:
+                if 'SSID' in h[1]:
+                    return True
 
         return False
 
     def is_quota_exceeded(self, response):
         # TODO: double check that the check for the content-disposition
         # is correct
-        if 'Content-Disposition' in response.info():
+        if 'Content-Disposition' in [h[0] for h in response.headers._headers]:
             return False
         return True
 
@@ -160,10 +167,12 @@ class pyGoogleTrendsCsvDownloader(object):
 
         # Silly python with the urlencode method
         params = urllib.parse.urlencode(params).replace("+", "%20")
+        print(self.url_download + params)
         response = self.opener.open(self.url_download + params)
 
         # Make sure quotas are not exceeded ;)
         if self.is_quota_exceeded(response):
+           print(gzip.decompress(response.read()))
            raise QuotaExceededException()
 
         return self.read_gzipped_response(response)
