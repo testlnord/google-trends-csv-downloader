@@ -19,6 +19,9 @@ from io import StringIO
 class QuotaExceededException(Exception):
     pass
 
+class AuthFailedException(Exception):
+    pass
+
 class pyGoogleTrendsCsvDownloader(object):
     '''
     Google Trends Downloader.
@@ -78,11 +81,11 @@ class pyGoogleTrendsCsvDownloader(object):
         self.cj = CookieJar()
         self.cj.set_cookie(ck1)
         self.cj.set_cookie(ck2)
-        if self.proxy is None:
+        if not self.proxy:
             self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cj))
         else:
-            proxy = urllib.request.ProxyHandler({'http': 'http://{0[2]}:{0[3]}@{0[0]}:{0[1]}'.format(self.proxy),
-                                                 'https': 'http://{0[2]}:{0[3]}@{0[0]}:{0[1]}'.format(self.proxy)})
+            proxy = urllib.request.ProxyHandler({'http': self.proxy,
+                                                 'https': self.proxy})
             self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cj), proxy)
         self.opener.addheaders = self.headers
 
@@ -100,7 +103,7 @@ class pyGoogleTrendsCsvDownloader(object):
                     value = input.get('value', '').encode('utf8')
                     self.login_params[name] = value
         except:
-            print(("Exception while parsing: %s\n" % traceback.format_exc()))
+            raise AuthFailedException(("Exception while parsing: %s\n" % traceback.format_exc()))
 
         self.login_params["Email".encode('utf8')] = username.encode('utf8')
         self.login_params["Passwd".encode('utf8')] = password.encode('utf8')
@@ -111,9 +114,7 @@ class pyGoogleTrendsCsvDownloader(object):
         # Testing whether Authentication was a success
         # I noticed that a correct auth sets a few cookies
         if not self.is_authentication_successfull(auth_resp):
-            print(auth_resp)
-            print(gzip.decompress(auth_resp.read()))
-            raise ValueError('Warning: Authentication failed for user %s' % username)
+            raise AuthFailedException('Warning: Authentication failed for user %s' % username)
 
 
     def is_authentication_successfull(self, response):
@@ -167,12 +168,10 @@ class pyGoogleTrendsCsvDownloader(object):
 
         # Silly python with the urlencode method
         params = urllib.parse.urlencode(params).replace("+", "%20")
-        print(self.url_download + params)
         response = self.opener.open(self.url_download + params)
 
         # Make sure quotas are not exceeded ;)
         if self.is_quota_exceeded(response):
-           print(gzip.decompress(response.read()))
            raise QuotaExceededException()
 
         return self.read_gzipped_response(response)
